@@ -12,7 +12,9 @@ Lệnh:
     list                        liệt kê agent (chế độ, quyền chặn, đồng bộ?)
     new <tên>                   tạo agent mới từ mẫu rồi đồng bộ
     sync                        sinh lại .opencode/agents/ + agents/README.md
-    check                       kiểm tra hợp lệ, phát hiện bản sinh bị lệch
+    check                       kiểm tra hợp lệ, phát hiện bản sinh bị lệch; bắt
+                                thiếu/thừa vai so với 6 vai chuẩn (ADR-0017) và
+                                mẫu task lệch nguồn (ADR-0015 mục 3)
     doc                         sinh lại bảng agent trong agents/README.md
     rename <tên-cũ> <tên-mới>   đổi tên agent
     rm <tên>                    xoá agent (cả bản sinh)
@@ -39,6 +41,29 @@ HIEU_LUC_HOP_LE = ("allow", "ask", "deny")
 # Các trường V1 không được dùng nữa (OpenCode V2 bỏ qua hoặc báo lỗi)
 TRUONG_CU = ("temperature", "top_p", "prompt", "permission", "tools", "disable",
              "maxSteps")
+
+# --- 6 vai chuẩn của dự án (ADR-0017) ---------------------------------------
+# `check` bắt buộc thư mục agents/ của dự án có ĐÚNG bộ này: thiếu vai nào thì
+# báo, và tên cũ `sw-release-qg-check` không được quay lại.
+VAI_CHUAN = ("task-planning", "task-implementation", "task-vv",
+             "sw-system-release", "sw-integrator", "sw-architect")
+TEN_CU = "sw-release-qg-check"                 # tên R4 trước ADR-0017
+VAI_R1 = "task-planning"
+
+# --- mẫu task: một nguồn duy nhất (ADR-0015 mục 3) ---------------------------
+# Mẫu nằm ở `tasks/MAU_TASK.md`; agent R1 chỉ TRỎ tới, không chép lại — hai bản
+# chép tay thì sửa một bên là lệch, `check` bắt đúng lỗi đó.
+MAU_TASK = os.path.join(GOC_DU_AN, "tasks", "MAU_TASK.md")
+MAU_TASK_REF = "tasks/MAU_TASK.md"
+MUC_MAU_TASK = ("## 1. Yêu cầu gốc", "## 2. Mục tiêu (đo được)", "## 3. Phạm vi",
+                "## 4. Đã chốt với người dùng", "## 5. Còn mở",
+                "## 6. Hướng làm & tệp dự kiến đụng tới",
+                "## 7. Tiêu chí nghiệm thu", "## 8. Kiểm thử",
+                "## 9. Việc cần làm", "## 10. Ghi chú / rủi ro")
+TRANG_THAI_TASK = ("chờ làm", "đang làm", "chờ V&V", "đang V&V", "chờ release",
+                   "xong", "tạm hoãn", "bỏ")
+MUC_BAO_CAO_TASK = ("Kết quả thực hiện (R2)", "Kết quả V&V (R3)",
+                    "Cổng phát hành (R4)")
 
 MAU_AGENT = """---
 # `description` là dòng quan trọng nhất: agent chính đọc nó để biết khi nào gọi
@@ -288,6 +313,64 @@ def _doc_readme():
         os.path.join(NGUON, README)) else None
 
 
+# ------------------------------------------------- luật kiểm cấp dự án (6 vai)
+def _la_du_an_that():
+    """True khi đang soi chính ``agents/`` của dự án (test dùng thư mục tạm)."""
+    return os.path.abspath(NGUON) == os.path.join(GOC_DU_AN, "agents")
+
+
+def _kiem_tra_mau_task():
+    """Lỗi của cặp `tasks/MAU_TASK.md` ↔ agent R1 (phải cùng một nguồn)."""
+    if not os.path.exists(MAU_TASK):
+        return ["thiếu %s — mẫu task là nguồn duy nhất cho R1 và tools/task.py"
+                % MAU_TASK_REF]
+    mau, loi = _doc(MAU_TASK), []
+    for muc in MUC_MAU_TASK:
+        if muc not in mau:
+            loi.append("mẫu task thiếu mục '%s'" % muc)
+    for muc in MUC_BAO_CAO_TASK:
+        if muc not in mau:
+            loi.append("mẫu task thiếu mục báo cáo '%s'" % muc)
+    for trang_thai in TRANG_THAI_TASK:
+        if "`%s`" % trang_thai not in mau:
+            loi.append("mẫu task thiếu trạng thái '%s'" % trang_thai)
+
+    path_r1 = _duong_dan_nguon(VAI_R1)
+    if not os.path.exists(path_r1):
+        loi.append("thiếu agent '%s' (R1) — vai duy nhất được tạo tasks/TASK-*.md"
+                   % VAI_R1)
+        return loi
+    try:
+        than_r1 = _giai_frontmatter(_doc(path_r1))[2]
+    except ValueError as ex:
+        return loi + ["%s: %s" % (VAI_R1, ex)]
+    if MAU_TASK_REF not in than_r1:
+        loi.append("agent '%s' không trỏ về mẫu dùng chung '%s' (ADR-0015 mục 3)"
+                   % (VAI_R1, MAU_TASK_REF))
+    if MUC_MAU_TASK[0] in than_r1:
+        loi.append("agent '%s' chép lại mẫu task ('%s') — sửa mẫu ở %s rồi trỏ về, "
+                   "đừng giữ hai bản (ADR-0015 mục 3)"
+                   % (VAI_R1, MUC_MAU_TASK[0], MAU_TASK_REF))
+    return loi
+
+
+def _kiem_tra_du_an(ten_list):
+    """Luật cấp dự án: đủ 6 vai (ADR-0017) + mẫu task dùng chung (ADR-0015)."""
+    loi = []
+    thieu = [v for v in VAI_CHUAN if v not in ten_list]
+    thua = [v for v in ten_list if v not in VAI_CHUAN]
+    if thieu:
+        loi.append("thiếu vai chuẩn: %s (đủ 6 vai theo ADR-0017)"
+                   % ", ".join(thieu))
+    if thua:
+        loi.append("có vai ngoài 6 vai chuẩn: %s — vai mới phải đi kèm ADR-0017"
+                   % ", ".join(thua))
+    if TEN_CU in ten_list:
+        loi.append("tên cũ '%s' đã đổi thành 'sw-system-release' — đừng để quay lại "
+                   "(ADR-0017)" % TEN_CU)
+    return loi + _kiem_tra_mau_task()
+
+
 # ------------------------------------------------------------------ các lệnh
 def _sinh_readme():
     dong = [DANH_DAU % "tools/agents.py doc", "",
@@ -452,8 +535,15 @@ def _lenh_check():
         loi_tat_ca.append(("agents/%s" % README,
                            ["bảng chưa cập nhật (chạy 'doc')"]))
 
+    if _la_du_an_that():
+        loi_du_an = _kiem_tra_du_an(ten_list)
+        if loi_du_an:
+            loi_tat_ca.append(("agents/ + %s" % MAU_TASK_REF, loi_du_an))
+
     if not loi_tat_ca:
-        print("OK: %d agent hợp lệ, bản OpenCode khớp bản gốc." % len(ten_list))
+        them = ", đủ 6 vai chuẩn (ADR-0017)" if _la_du_an_that() else ""
+        print("OK: %d agent hợp lệ%s, bản OpenCode khớp bản gốc."
+              % (len(ten_list), them))
         return 0
     print("PHÁT HIỆN %d chỗ có vấn đề:" % len(loi_tat_ca))
     for path, loi in loi_tat_ca:

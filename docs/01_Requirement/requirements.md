@@ -23,16 +23,8 @@ Xây dựng ứng dụng desktop xem ảnh trên Windows, giao diện tối (dar
 
 ## 3. Yêu cầu phi chức năng
 
-| ID | Yêu cầu | Mô tả |
-|----|---------|-------|
-| NF1 | Hệ điều hành | Windows 7 trở lên. Chỉ chạy trên Windows (dùng Win32 API cho Aero, taskbar app-id). |
-| NF2 | Ngôn ngữ / runtime | Python 3.10+, PySide6 >= 6.6.0. Quản lý dependencies bằng `uv` + `uv.lock`. |
-| NF3 | Layout mã nguồn | Layout phẳng (không `src/`), không dùng `ruff` (dùng `pyflakes`). Mã app nằm trong `xemanh/`, `loc_nu.py`, `viewer_qt.py`. |
-| NF4 | Hiệu năng | Không rò rỉ RAM khi chuyển ảnh lặp đi lặp lại. CPU khi rảnh thấp (< 1%). |
-| NF5 | Độ phủ test | C0/C1 >= 80% (`--cov-fail-under=80`). Hiện tại đạt ~99.9%. |
-| NF6 | Test offscreen | Chạy test trên CI không cần màn hình thật (Qt offscreen). Không tải model thật (giả lập/monkeypatch). |
-| NF7 | Đóng gói .exe | Build onefile qua PyInstaller + spec lọc DLL xung đột. Kích thước ~115MB. Model lưu vào `%LOCALAPPDATA%\PhanMemXemAnh\models` hoặc `./models` cạnh .exe. |
-| NF8 | Offline | Sau lần tải model đầu (~430MB), app hoạt động hoàn toàn offline. |
+Đã tách riêng ra **`non_functional_requirements.md`** (NF1…NF8 — giữ nguyên cách
+đánh số, xem tệp đó để biết nội dung và cách xác minh từng NF).
 
 ## 4. Rang buộc
 

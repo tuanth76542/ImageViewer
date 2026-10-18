@@ -1,8 +1,8 @@
 # Yêu cầu phi chức năng cho QUY TRÌNH (NFR quy trình)
 
-> Sở hữu: **R6 SW-Architect**. Trạng thái: **đã viết theo ADR-0011 … ADR-0017**
-> (chốt 2026-10-18); mục nào còn lệ thuộc quyết định chưa chốt thì ghi rõ ở cột
-> "Phụ thuộc".
+> Sở hữu: **R6 SW-Architect**. Trạng thái: **đã viết theo ADR-0011 … ADR-0018**
+> (chốt 2026-10-18); **không còn điểm mở** treo ở cột "Phụ thuộc" — quyết định nào
+> mới thay đổi chỉ số thì phải mở ADR mới và cập nhật cả bảng dưới đây.
 
 Đây là NFR cho **cách làm việc** (quy trình), không phải cho sản phẩm. NFR của sản
 phẩm nằm ở `../01_Requirement/non_functional_requirements.md` (NF1…).
@@ -16,7 +16,7 @@ phẩm nằm ở `../01_Requirement/non_functional_requirements.md` (NF1…).
 | NF-P3 | **Chỉ một vai chạy tại một thời điểm**; không chạy chồng 2 `pytest`/2 `build_exe` | 0 lần chồng tiến trình nặng; `git status` sạch đầu mỗi lượt | `tasks/BOARD.md` + mắt thường khi chạy | ADR-0011 |
 | NF-P4 | Không nhân bản tài nguyên nặng (`.venv`, `models/`) | đĩa tăng mỗi release < 200 MB (chủ yếu `.exe` trong `dist/`) | `Get-ChildItem` đo dung lượng | ADR-0011 |
 | NF-P5 | Bộ cổng local chạy nhanh trên máy yếu (i7-6600U 2 nhân) | `tools\gate.py` ≤ **60 s** (hiện pytest ~16 s + pyflakes < 5 s) | `Measure-Command` | ADR-0013 |
-| NF-P6 | Lịch sử `main` sạch: 1 task = **1 commit squash**; mỗi release có dấu vết | `git log --first-parent main` có đúng 1 commit/task; tag `vX.Y` (nếu bạn chốt dùng tag) | `git log`, `git tag` | ADR-0011, điểm mở (b) |
+| NF-P6 | Lịch sử `main` sạch: 1 task = **1 commit squash**; mỗi release có dấu vết | `git log --first-parent main` có đúng 1 commit/task; mỗi release có tag `vX.Y.Z` + mục `CHANGELOG.md` | `git log`, `git tag`, `CHANGELOG.md` | ADR-0011, ADR-0018 |
 | NF-P7 | **Traceability**: mọi FR có ≥ 1 test chức năng trỏ về nó | bảng F↔test trong `docs/01_Requirement/requirements.md` đầy đủ | review của R4 | ADR-0014 |
 | NF-P8 | Cổng không tải mạng, không dùng model thật, không cần màn hình | `uv run pytest` xanh khi offscreen, không mạng | chạy `pytest -m unit` / `-m functional` | ADR-0014 |
 | NF-P9 | Không vai nào ghi ra ngoài vùng sở hữu (mục 1 của tài liệu quy trình) | 0 vụ vi phạm bị R4 bắt trong review | `git diff --name-only` đối chiếu bảng quyền ghi | ADR-0016 |

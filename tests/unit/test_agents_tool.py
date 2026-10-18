@@ -211,3 +211,123 @@ def test_tom_tat_quyen_dem_lenh_cu_the():
                {"action": "subagent", "resource": "*", "effect": "deny"}]
     assert cc._tom_tat_quyen(quy_tac) == \
         "shell (2 lệnh chặn) +1 lệnh hỏi, subagent"
+
+
+# ------------------------------- luật cấp dự án: 6 vai + mẫu task dùng chung
+def _mau_task_hop_le():
+    """Mẫu tối thiểu nhưng đủ mục/trạng thái mà `check` đòi (dựng từ chính hằng số)."""
+    dong = ["# TASK-NNN — <Tên việc>", "- **Trạng thái**: chờ làm", ""]
+    dong += list(cc.MUC_MAU_TASK)
+    dong += list(cc.MUC_BAO_CAO_TASK)
+    dong += ["Vòng đời: " + " ".join("`%s`" % t for t in cc.TRANG_THAI_TASK)]
+    return "\n".join(dong) + "\n"
+
+
+def _viet_mau_task(path, noi_dung=None):
+    path.write_text(_mau_task_hop_le() if noi_dung is None else noi_dung,
+                    encoding="utf-8")
+    return path
+
+
+@pytest.fixture
+def du_an_gia(tmp_path, monkeypatch):
+    """Trỏ NGUON/DICH/GOC_DU_AN/MAU_TASK vào thư mục tạm (đóng vai "dự án thật")."""
+    ng = tmp_path / "agents"
+    dich = tmp_path / ".opencode" / "agents"
+    ng.mkdir()
+    mau = _viet_mau_task(tmp_path / "MAU_TASK.md")
+    monkeypatch.setattr(cc, "NGUON", str(ng))
+    monkeypatch.setattr(cc, "DICH", str(dich))
+    monkeypatch.setattr(cc, "GOC_DU_AN", str(tmp_path))
+    monkeypatch.setattr(cc, "MAU_TASK", str(mau))
+    return ng, dich
+
+
+def test_mau_task_that_khop_voi_agent_r1():
+    """Mẫu thật + agent R1 thật của dự án phải cùng nguồn (ADR-0015 mục 3)."""
+    assert cc._kiem_tra_mau_task() == []
+
+
+def test_sau_vai_chuan_cua_du_an_khong_co_loi():
+    assert cc._kiem_tra_du_an(cc._danh_sach()) == []
+
+
+def test_check_that_tren_du_an_that_tra_0(capsys):
+    assert cc.main(["check"]) == 0
+    out = capsys.readouterr().out
+    assert "OK" in out and "6 vai" in out
+
+
+def test_kiem_tra_du_an_bat_thieu_vai_chuan():
+    loi = cc._kiem_tra_du_an(["task-planning"])
+    assert any("thiếu vai chuẩn" in x for x in loi)
+    assert any("task-vv" in x for x in loi)
+
+
+def test_kiem_tra_du_an_bat_vai_la_va_ten_cu():
+    loi = cc._kiem_tra_du_an(list(cc.VAI_CHUAN) + [cc.TEN_CU])
+    assert any("ngoài 6 vai chuẩn" in x for x in loi)
+    assert any("quay lại" in x for x in loi)
+
+
+def test_kiem_tra_mau_task_bao_thieu_tep(tmp_path, monkeypatch):
+    monkeypatch.setattr(cc, "MAU_TASK", str(tmp_path / "khong-co.md"))
+    loi = cc._kiem_tra_mau_task()
+    assert len(loi) == 1 and "nguồn duy nhất" in loi[0]
+
+
+def _viet_agent_than(ng, ten, than):
+    """Viết agent với phần THÂN tuỳ ý (khác `_viet_agent` — chỗ đó là frontmatter)."""
+    (ng / ("agent-%s.md" % ten)).write_text(
+        "---\ndescription: %s\nmode: all\n---\n\n%s\n" % (MO_TA, than),
+        encoding="utf-8")
+
+
+def test_kiem_tra_mau_task_bao_thieu_muc_va_trang_thai(du_an_gia, tmp_path):
+    _viet_agent_than(du_an_gia[0], "task-planning", THAN)
+    _viet_mau_task(tmp_path / "MAU_TASK.md",
+                   noi_dung="# TASK-NNN — <Tên việc>\n- **Trạng thái**: chờ làm\n")
+    loi = cc._kiem_tra_mau_task()
+    assert any("thiếu mục '## 1. Yêu cầu gốc'" in x for x in loi)
+    assert any("thiếu trạng thái 'chờ release'" in x for x in loi)
+    assert any("thiếu mục báo cáo 'Cổng phát hành (R4)'" in x for x in loi)
+
+
+def test_kiem_tra_mau_task_bat_agent_r1_chep_lai(du_an_gia):
+    ng = du_an_gia[0]
+    _viet_agent_than(ng, "task-planning",
+                     "Mẫu ở %s\n%s\n\n%s" % (cc.MAU_TASK_REF,
+                                             cc.MUC_MAU_TASK[0], THAN))
+    loi = cc._kiem_tra_mau_task()
+    assert any("chép lại mẫu task" in x for x in loi)
+
+
+def test_kiem_tra_mau_task_bat_agent_r1_khong_tro_ve_mau(du_an_gia):
+    ng = du_an_gia[0]
+    _viet_agent_than(ng, "task-planning", THAN)
+    loi = cc._kiem_tra_mau_task()
+    assert len(loi) == 1 and "không trỏ về mẫu dùng chung" in loi[0]
+
+
+def test_kiem_tra_mau_task_bao_thieu_agent_r1(du_an_gia):
+    loi = cc._kiem_tra_mau_task()
+    assert len(loi) == 1 and "thiếu agent 'task-planning'" in loi[0]
+
+
+def test_check_bat_loi_cap_du_an_khi_dung_du_an_that(du_an_gia, capsys):
+    """Thư mục `agents/` của dự án thiếu vai -> `check` phải đỏ."""
+    _viet_agent(du_an_gia[0], "thu-nghiem")
+    cc.main(["sync"])
+
+    assert cc.main(["check"]) == 1
+    out = capsys.readouterr().out
+    assert "thiếu vai chuẩn" in out and "task-vv" in out
+
+
+def test_check_bo_luat_cap_du_an_khi_dung_thu_muc_tam(thu_muc, capsys):
+    """Test chạy trên thư mục tạm: luật 6 vai không áp dụng (tránh báo oan)."""
+    _viet_agent(thu_muc[0], "thu-nghiem")
+    cc.main(["sync"])
+
+    assert cc.main(["check"]) == 0
+    assert "6 vai" not in capsys.readouterr().out

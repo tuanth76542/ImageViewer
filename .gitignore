@@ -21,6 +21,9 @@ reports/
 .coverage
 .coverage.*
 
+# Bảng công việc (sinh bằng `uv run python tools\board.py` — không commit)
+tasks/BOARD.md
+
 # Tạm
 *.tmp
 *.log
