@@ -1,0 +1,51 @@
+[project]
+name = "phanmemxemanh"
+version = "0.1.0"
+description = "Trình xem ảnh Windows: điều hướng bàn phím, zoom pinch, slideshow, lọc ảnh nữ"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "Pillow>=10.0.0",
+    "PySide6>=6.6.0",
+    "opencv-python>=4.8.0,<5",
+    "onnxruntime>=1.17.0",
+    "numpy>=1.24.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "pytest-html>=4.1",     # ghi báo cáo reports/test-report.html sau mỗi lần chạy test
+    "pytest-cov>=6.0",      # đo độ phủ C0 (dòng lệnh) + C1 (nhánh)
+    "psutil>=5.9",          # đo RAM/CPU trong test & tools/measure_resources.py
+]
+
+# Ứng dụng, không phải thư viện -> uv không cần build/đóng gói chính nó
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# --cov-fail-under=80: chốt sàn độ phủ vào luôn để lần sau tụt sâu là pytest đỏ
+# (lần chạy gần nhất đạt C0/C1 ~99%; đặt 80 làm mức chặn an toàn, không quá khắt khe)
+addopts = "-q --strict-markers --html=reports/test-report.html --self-contained-html --cov --cov-report=term-missing --cov-report=html:reports/cov-html --cov-fail-under=80"
+pythonpath = ["."]
+markers = [
+    "unit: test đơn vị, không cần màn hình",
+    "functional: test chức năng trên giao diện Qt (chạy offscreen)",
+    "resources: test đo tài nguyên RAM/CPU",
+]
+
+# Độ phủ mã nguồn của chính app (không tính tests/, tools/, thư viện ngoài).
+# branch = C1 (bao nhiêu nhánh if/else, while, and/or đã chạy), phần dòng lệnh là C0.
+[tool.coverage.run]
+branch = true
+source = ["xemanh", "loc_nu", "viewer_qt"]
+
+[tool.coverage.report]
+show_missing = true
+exclude_also = [
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+]

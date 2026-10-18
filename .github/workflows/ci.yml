@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  quality:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Sync dependencies (prod + dev)
+        run: uv sync --group dev
+
+      - name: Run tests & coverage
+        run: uv run pytest
+
+      - name: Pyflakes static check
+        run: uv run --with pyflakes python -m pyflakes xemanh/ loc_nu.py viewer_qt.py
+
+      - name: Upload test report & coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-report
+          path: |
+            reports/test-report.html
+            reports/cov-html/
+          retention-days: 7

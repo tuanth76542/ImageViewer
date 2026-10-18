@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+venv/
+
+# Model nặng (~430MB) tự tải lại được + cache kết quả lọc
+models/
+cache/
+
+# Đóng gói
+build/
+dist/
+*.spec
+!PhanMemXemAnh.spec
+
+# Báo cáo test sinh tự động
+reports/
+.coverage
+.coverage.*
+
+# Tạm
+*.tmp
+*.log

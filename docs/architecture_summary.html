@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>Tóm tắt kiến trúc — Phần Mềm Xem Ảnh</title>
+<style>
+  body { font-family: Segoe UI, Tahoma, Geneva, Verdana, sans-serif; margin: 24px; color: #222; }
+  h1 { font-size: 24px; border-bottom: 2px solid #0078d4; padding-bottom: 8px; }
+  h2 { font-size: 18px; margin-top: 24px; color: #0078d4; }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; }
+  th, td { border: 1px solid #ccc; padding: 8px; text-align: left; vertical-align: top; }
+  th { background: #f2f2f2; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 12px; color: #fff; }
+  .badge-cao { background: #d9534f; }
+  .badge-tb { background: #f0ad4e; }
+  .badge-thap { background: #5cb85c; }
+  pre { background: #f8f8f8; padding: 10px; border: 1px solid #ddd; overflow-x: auto; }
+  .note { background: #e7f3fe; border-left: 4px solid #0078d4; padding: 10px; margin: 12px 0; }
+</style>
+</head>
+<body>
+
+<h1>Tóm tắt kiến trúc — Phần Mềm Xem Ảnh</h1>
+
+<p><em>Tài liệu tổng hợp theo mô hình C4 (Context → Container → Component). Ngôn ngữ: tiếng Việt.</em></p>
+
+<h2>1. System Context (C4 Level 1)</h2>
+<table>
+  <thead><tr><th>Phần tử</th><th>Mô tả</th></tr></thead>
+  <tbody>
+    <tr><td><b>Actor</b></td><td>Người dùng cuối: mở thư mục ảnh, xem ảnh, zoom/xoay, trình chiếu, lọc ảnh nữ, tùy chỉnh Aero.</td></tr>
+    <tr><td><b>Hệ thống</b></td><td>Phần Mềm Xem Ảnh — ứng dụng desktop PySide6 trên Windows. Điểm vào: <code>viewer_qt.py</code>. Mã chính trong <code>xemanh/</code>, bộ lọc ảnh nữ trong <code>loc_nu.py</code>.</td></tr>
+    <tr><td><b>Hệ thống bên ngoài</b></td><td>Thư mục ảnh cục bộ, Models AI (ONNX), Internet (tải model lần đầu), Windows OS (Aero, AppID taskbar).</td></tr>
+  </tbody>
+</table>
+
+<h2>2. Container (C4 Level 2)</h2>
+<table>
+  <thead><tr><th>Container</th><th>Công nghệ</th><th>Mô tả</th></tr></thead>
+  <tbody>
+    <tr><td>Ứng dụng PySide6</td><td>Python 3.10, PySide6 >= 6.6.0</td><td>Single-process desktop app. Chứa UI, điều hướng, zoom, slideshow, lọc ảnh nữ.</td></tr>
+    <tr><td>Bộ lọc ảnh nữ (loc_nu)</td><td>OpenCV, onnxruntime, numpy</td><td>Suy luận AI: YuNet phát hiện mặt, FairFace ResNet-34 + ViT đoán giới tính. Song song workers.</td></tr>
+    <tr><td>Cache lọc</td><td>File JSON</td><td>Lưu kết quả suy luận theo (đường dẫn + kích thước + mtime).</td></tr>
+    <tr><td>Models</td><td>File ONNX (~430MB)</td><td>YuNet, FairFace ResNet-34, FairFace ViT.</td></tr>
+    <tr><td>Thư mục ảnh người dùng</td><td>File system</td><td>Nguồn ảnh đầu vào (JPEG, PNG, …).</td></tr>
+  </tbody>
+</table>
+
+<h2>3. Component (C4 Level 3)</h2>
+<table>
+  <thead><tr><th>Component</th><th>Tệp</th><th>Trách nhiệm chính</th></tr></thead>
+  <tbody>
+    <tr><td>MainWindow</td><td><code>xemanh/mainwindow.py</code></td><td>Cửa sổ chính: UI, thanh nổi, overlay, phím tắt, điều hướng, zoom/xoay, slideshow, lọc nữ, Aero, fullscreen.</td></tr>
+    <tr><td>ImageView</td><td><code>xemanh/imageview.py</code></td><td>Khung xem ảnh: pan, pinch gesture, lăn chuột, kéo-thả, resize.</td></tr>
+    <tr><td>FilterThread</td><td><code>xemanh/filterthread.py</code></td><td>Luồng nền chạy <code>loc_nu</code>, phát tín hiệu tiến độ / tìm thấy / hoàn thành / thất bại.</td></tr>
+    <tr><td>loc_nu</td><td><code>loc_nu.py</code></td><td>Phát hiện mặt (YuNet), đoán giới tính (2 vòng), cache JSON, tải model.</td></tr>
+    <tr><td>Slideshow</td><td><code>xemanh/slideshow.py</code></td><td>Cửa sổ trình chiếu toàn màn hình, tốc độ 3/5/10/20 giây.</td></tr>
+    <tr><td>HelpDialog</td><td><code>xemanh/helpdialog.py</code></td><td>Bảng trợ giúp phím tắt.</td></tr>
+    <tr><td>winfx</td><td><code>xemanh/winfx.py</code></td><td>Icon app, AppID taskbar, kính mờ Aero (DWM).</td></tr>
+    <tr><td>theme</td><td><code>xemanh/theme.py</code></td><td>Bảng màu QSS dark theme, hiệu ứng kính mờ <code>_glass</code>.</td></tr>
+    <tr><td>imageutils</td><td><code>xemanh/imageutils.py</code></td><td>Liệt kê ảnh, chuyển PIL → QImage.</td></tr>
+    <tr><td>perf</td><td><code>xemanh/perf.py</code></td><td>Đo RAM, CPU, thread, handle.</td></tr>
+    <tr><td>ImageCache <sup>*</sup></td><td>—</td><td>LRU cache ảnh đã decode (nên có, chưa có).</td></tr>
+    <tr><td>FilterService <sup>*</sup></td><td>—</td><td>Tách logic gọi <code>loc_nu</code> khỏi UI (nên có, chưa có).</td></tr>
+  </tbody>
+</table>
+<p class="note"><sup>*</sup> Đề xuất cải tiến mới, chưa triển khai trong mã nguồn hiện tại.</p>
+
+<h2>4. Các vấn đề kiến trúc cần cải thiện</h2>
+<table>
+  <thead><tr><th>Vấn đề</th><th>Mô tả ngắn</th><th>Ưu tiên</th></tr></thead>
+  <tbody>
+    <tr><td>God Class</td><td><code>MainWindow</code> (~636 dòng) giữ quá nhiều trách nhiệm.</td><td><span class="badge badge-cao">Cao</span></td></tr>
+    <tr><td>Trộn domain vào UI</td><td><code>MainWindow.toggle_female_filter()</code> trực tiếp import <code>loc_nu</code>, hiển thị <code>QMessageBox</code>/<code>QProgressDialog</code>.</td><td><span class="badge badge-cao">Cao</span></td></tr>
+    <tr><td>Thiếu cache ảnh</td><td>Mỗi lần chuyển ảnh đều <code>Image.open</code> từ đĩa, chưa có LRU cache.</td><td><span class="badge badge-tb">Trung bình</span></td></tr>
+    <tr><td>Xử lý lỗi yếu</td><td>Nhiều <code>try/except: pass</code> không log, không thông báo người dùng.</td><td><span class="badge badge-tb">Trung bình</span></td></tr>
+    <tr><td>Không lưu trạng thái phiên</td><td>Thư mục mở lần cuối, zoom, lọc nữ… mất khi đóng app.</td><td><span class="badge badge-thap">Thấp</span></td></tr>
+  </tbody>
+</table>
+
+<h2>5. Thông số kỹ thuật</h2>
+<ul>
+  <li><b>Hệ điều hành:</b> Windows 7 trở lên.</li>
+  <li><b>Ngôn ngữ / runtime:</b> Python 3.10+, PySide6 >= 6.6.0.</li>
+  <li><b>Quản lý dependencies:</b> <code>uv</code> + <code>uv.lock</code>.</li>
+  <li><b>Layout mã:</b> Phẳng (không <code>src/</code>), không dùng <code>ruff</code> (dùng <code>pyflakes</code>).</li>
+  <li><b>Đóng gói:</b> PyInstaller onefile + spec lọc DLL xung đột (~115MB).</li>
+  <li><b>Độ phủ test:</b> C0/C1 >= 80% (hiện tại ~99.9%).</li>
+  <li><b>Test:</b> Offscreen CI, giả lập model (không tải 430MB thật).</li>
+</ul>
+
+</body>
+</html>
